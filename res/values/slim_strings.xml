@@ -108,4 +108,7 @@
     <string name="enable_suggestions_summary">Suggest phone number of nearby places when searching i
 n the dialer</string>
 
+    <!-- Noise suppression -->
+    <string name="noise_suppression_title">Noise suppression</string>
+    <string name="noise_suppression_summary">Enable noise suppression for calls</string>
 </resources>
