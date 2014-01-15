@@ -99,4 +99,8 @@
 
     <string name="personal_category">Personal settings</string>
 
+    <!-- My Phone Number field -->
+    <string name="phone_number_label">My phone number</string>
+    <string name="phone_number_summary">Set the phone number for this device</string>
+
 </resources>
