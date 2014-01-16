@@ -186,6 +186,8 @@ public class CallFeaturesSetting extends PreferenceActivity
     private static final String BUTTON_TTY_KEY         = "button_tty_mode_key";
     private static final String BUTTON_HAC_KEY         = "button_hac_key";
 
+    private static final String BUTTON_ENABLE_SUGGESTIONS = "button_enable_suggestions";
+
     private static final String BUTTON_GSM_UMTS_OPTIONS = "button_gsm_more_expand_key";
     private static final String BUTTON_CDMA_OPTIONS = "button_cdma_more_expand_key";
 
@@ -293,6 +295,7 @@ public class CallFeaturesSetting extends PreferenceActivity
     private SipSharedPreferences mSipSharedPreferences;
     private PreferenceScreen mButtonBlacklist;
     private ListPreference mFlipAction;
+    private CheckBoxPreference mEnableSuggestions;
 
     private class VoiceMailProvider {
         public VoiceMailProvider(String name, Intent intent) {
@@ -550,6 +553,10 @@ public class CallFeaturesSetting extends PreferenceActivity
                 // This should let the preference use default behavior in the xml.
                 return false;
             }
+        } else if (preference == mEnableSuggestions){
+            Settings.System.putInt(getContentResolver(), Settings.System.ENABLE_DIALER_SUGGESTIONS,
+                    mEnableSuggestions.isChecked() ? 1 : 0);
+            return true;
         }
         return false;
     }
@@ -1676,6 +1683,10 @@ public class CallFeaturesSetting extends PreferenceActivity
                 throw new IllegalStateException("Unexpected phone type: " + phoneType);
             }
         }
+
+        mEnableSuggestions = (CheckBoxPreference) findPreference(BUTTON_ENABLE_SUGGESTIONS);
+        mEnableSuggestions.setChecked(Settings.System.getInt(getContentResolver(),
+                Settings.System.ENABLE_DIALER_SUGGESTIONS, 1) == 0 ? false : true);
 
         // create intent to bring up contact list
         mContactListIntent = new Intent(Intent.ACTION_GET_CONTENT);
