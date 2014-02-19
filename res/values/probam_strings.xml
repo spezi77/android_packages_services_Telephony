@@ -38,9 +38,4 @@
     <string name="summary_dismiss_call">dismiss the call</string>
 
     <string name="personal_category">Personal settings</string>
-
-    <string name="battery_mode">Battery saving mode</string>
-    <!-- Mobile network settings screen, setting summary text when check box is selected -->
-    <string name="battery_mode_label">Set network to 2G when device is locked</string>
-
 </resources>
