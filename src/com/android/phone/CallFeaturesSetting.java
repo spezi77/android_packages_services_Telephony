@@ -214,10 +214,14 @@ private static final String BUTTON_CALL_UI_IN_BACKGROUND = "bg_incall_screen";
 
     private static final String SWITCH_ENABLE_FORWARD_LOOKUP =
             "switch_enable_forward_lookup";
+    private static final String SWITCH_ENABLE_PEOPLE_LOOKUP =
+            "switch_enable_people_lookup";
     private static final String SWITCH_ENABLE_REVERSE_LOOKUP =
             "switch_enable_reverse_lookup";
     private static final String BUTTON_CHOOSE_FORWARD_LOOKUP_PROVIDER =
             "button_choose_forward_lookup_provider";
+    private static final String BUTTON_CHOOSE_PEOPLE_LOOKUP_PROVIDER =
+            "button_choose_people_lookup_provider";
     private static final String BUTTON_CHOOSE_REVERSE_LOOKUP_PROVIDER =
             "button_choose_reverse_lookup_provider";
 
@@ -317,9 +321,11 @@ private static final String BUTTON_CALL_UI_IN_BACKGROUND = "bg_incall_screen";
     private PreferenceScreen mButtonBlacklist;
     private CheckBoxPreference mNonIntrusiveInCall;
     private ListPreference mFlipAction;
-    private SwitchPreference mEnableForwardLookup;
-    private SwitchPreference mEnableReverseLookup;
+    private CheckBoxPreference mEnableForwardLookup;
+    private CheckBoxPreference mEnablePeopleLookup;
+    private CheckBoxPreference mEnableReverseLookup;
     private ListPreference mChooseForwardLookupProvider;
+    private ListPreference mChoosePeopleLookupProvider;
     private ListPreference mChooseReverseLookupProvider;
 
     private class VoiceMailProvider {
@@ -669,11 +675,13 @@ private static final String BUTTON_CALL_UI_IN_BACKGROUND = "bg_incall_screen";
                 Settings.System.CALL_FLIP_ACTION_KEY, index);
             updateFlipActionSummary(index);
         } else if (preference == mEnableForwardLookup
+                || preference == mEnablePeopleLookup
                 || preference == mEnableReverseLookup) {
-            saveLookupProviderSwitches(preference, (Boolean) objValue);
+            saveLookupProviderSwitch(preference, (Boolean) objValue);
         } else if (preference == mChooseForwardLookupProvider
+                || preference == mChoosePeopleLookupProvider
                 || preference == mChooseReverseLookupProvider) {
-            saveLookupProviders(preference, (String) objValue);
+            saveLookupProviderSetting(preference, (String) objValue);
         }
         // always let the preference setting proceed.
         return true;
@@ -1752,25 +1760,30 @@ if (mButtonCallUiInBackground != null) {
         mNonIntrusiveInCall.setChecked(Settings.System.getInt(getContentResolver(),
                 Settings.System.NON_INTRUSIVE_INCALL, 1) == 0 ? false : true);
 
-        mEnableForwardLookup = (SwitchPreference)
+        mEnableForwardLookup = (CheckBoxPreference)
                 findPreference(SWITCH_ENABLE_FORWARD_LOOKUP);
-        mEnableReverseLookup = (SwitchPreference)
+        mEnablePeopleLookup = (CheckBoxPreference)
+                findPreference(SWITCH_ENABLE_PEOPLE_LOOKUP);
+        mEnableReverseLookup = (CheckBoxPreference)
                 findPreference(SWITCH_ENABLE_REVERSE_LOOKUP);
 
         mEnableForwardLookup.setOnPreferenceChangeListener(this);
+        mEnablePeopleLookup.setOnPreferenceChangeListener(this);
         mEnableReverseLookup.setOnPreferenceChangeListener(this);
 
         restoreLookupProviderSwitches();
 
         mChooseForwardLookupProvider = (ListPreference)
                 findPreference(BUTTON_CHOOSE_FORWARD_LOOKUP_PROVIDER);
+        mChoosePeopleLookupProvider = (ListPreference)
+                findPreference(BUTTON_CHOOSE_PEOPLE_LOOKUP_PROVIDER);
         mChooseReverseLookupProvider = (ListPreference)
                 findPreference(BUTTON_CHOOSE_REVERSE_LOOKUP_PROVIDER);
 
         mChooseForwardLookupProvider.setOnPreferenceChangeListener(this);
+        mChoosePeopleLookupProvider.setOnPreferenceChangeListener(this);
         mChooseReverseLookupProvider.setOnPreferenceChangeListener(this);
 
-        initLookupProviders();
         restoreLookupProviders();
 
         // create intent to bring up contact list
@@ -2148,59 +2161,22 @@ if (mButtonCallUiInBackground != null) {
         }
     }
 
-    private void saveLookupProviderSwitches(Preference pref, Boolean newValue) {
-        if (DBG) log("saveLookupProviderSwitches()");
+    private void saveLookupProviderSwitch(Preference pref, Boolean newValue) {
+        if (DBG) log("saveLookupProviderSwitch()");
+
+        String key;
 
         if (pref == mEnableForwardLookup) {
-            Settings.System.putInt(getContentResolver(),
-                    Settings.System.ENABLE_FORWARD_LOOKUP,
-                    newValue ? 1 : 0);
+            key = Settings.System.ENABLE_FORWARD_LOOKUP;
+        } else if (pref == mEnablePeopleLookup) {
+            key = Settings.System.ENABLE_PEOPLE_LOOKUP;
         } else if (pref == mEnableReverseLookup) {
-            Settings.System.putInt(getContentResolver(),
-                    Settings.System.ENABLE_REVERSE_LOOKUP,
-                    newValue ? 1 : 0);
-        }
-    }
-
-    private void initLookupProviders() {
-        if (DBG) log("initLookupProviders()");
-
-        String[] fEntries = getApplicationContext().getResources()
-                .getStringArray(R.array.forward_lookup_provider_names);
-        String[] fEntryValues = getApplicationContext().getResources()
-                .getStringArray(R.array.forward_lookup_providers);
-
-        String[] rEntries = getApplicationContext().getResources()
-                .getStringArray(R.array.reverse_lookup_provider_names);
-        String[] rEntryValues = getApplicationContext().getResources()
-                .getStringArray(R.array.reverse_lookup_providers);
-
-        if (!isGmsInstalled(getApplicationContext())) {
-            if (DBG) log("Google Play Services is NOT installed");
-
-            List<String> listRNames = new ArrayList<String>(
-                    Arrays.asList(rEntries));
-            List<String> listRValues = new ArrayList<String>(
-                    Arrays.asList(rEntryValues));
-
-            int index = listRValues.indexOf("Google");
-
-            if (index != -1) {
-                if (DBG) log("Removing Google from the reverse lookup providers");
-
-                listRNames.remove(index);
-                listRValues.remove(index);
-            }
-
-            rEntries = listRNames.toArray(new String[0]);
-            rEntryValues = listRValues.toArray(new String[0]);
+            key = Settings.System.ENABLE_REVERSE_LOOKUP;
+        } else {
+            return;
         }
 
-        mChooseReverseLookupProvider.setEntries(rEntries);
-        mChooseReverseLookupProvider.setEntryValues(rEntryValues);
-
-        mChooseForwardLookupProvider.setEntries(fEntries);
-        mChooseForwardLookupProvider.setEntryValues(fEntryValues);
+        Settings.System.putInt(getContentResolver(), key, newValue ? 1 : 0);
     }
 
     private void restoreLookupProviderSwitches() {
@@ -2208,65 +2184,52 @@ if (mButtonCallUiInBackground != null) {
 
         mEnableForwardLookup.setChecked(Settings.System.getInt(
                 getContentResolver(),
-                Settings.System.ENABLE_FORWARD_LOOKUP, 1) != 0 ? true : false);
+                Settings.System.ENABLE_FORWARD_LOOKUP, 1) != 0);
+        mEnablePeopleLookup.setChecked(Settings.System.getInt(
+                getContentResolver(),
+                Settings.System.ENABLE_PEOPLE_LOOKUP, 1) != 0);
         mEnableReverseLookup.setChecked(Settings.System.getInt(
                 getContentResolver(),
-                Settings.System.ENABLE_REVERSE_LOOKUP, 1) != 0 ? true : false);
+                Settings.System.ENABLE_REVERSE_LOOKUP, 1) != 0);
+    }
+
+    private void restoreLookupProvider(ListPreference pref, String key) {
+        String provider = Settings.System.getString(getContentResolver(), key);
+        if (provider == null) {
+            pref.setValueIndex(0);
+            saveLookupProviderSetting(pref, pref.getEntryValues()[0].toString());
+        } else {
+            pref.setValue(provider);
+        }
     }
 
     private void restoreLookupProviders() {
         if (DBG) log("restoreLookupProviders()");
 
-        String fProvider = Settings.System.getString(
-                getContentResolver(),
+        restoreLookupProvider(mChooseForwardLookupProvider,
                 Settings.System.FORWARD_LOOKUP_PROVIDER);
-
-        if (fProvider == null) {
-            mChooseForwardLookupProvider.setValueIndex(0);
-            saveLookupProviders(mChooseForwardLookupProvider,
-                    (String) mChooseForwardLookupProvider.getEntryValues()[0]);
-        } else {
-            mChooseForwardLookupProvider.setValue(fProvider);
-        }
-
-        String rProvider = Settings.System.getString(
-                getContentResolver(),
+        restoreLookupProvider(mChoosePeopleLookupProvider,
+                Settings.System.PEOPLE_LOOKUP_PROVIDER);
+        restoreLookupProvider(mChooseReverseLookupProvider,
                 Settings.System.REVERSE_LOOKUP_PROVIDER);
-
-        if (rProvider == null) {
-            mChooseReverseLookupProvider.setValueIndex(0);
-            saveLookupProviders(mChooseReverseLookupProvider,
-                    (String) mChooseReverseLookupProvider.getEntryValues()[0]);
-        } else {
-            mChooseReverseLookupProvider.setValue(rProvider);
-        }
     }
 
-    private void saveLookupProviders(Preference pref, String newValue) {
-        if (DBG) log("saveLookupProviders()");
+    private void saveLookupProviderSetting(Preference pref, String newValue) {
+        if (DBG) log("saveLookupProviderSetting()");
+
+        String key;
 
         if (pref == mChooseForwardLookupProvider) {
-            Settings.System.putString(
-                    getContentResolver(),
-                    Settings.System.FORWARD_LOOKUP_PROVIDER,
-                    newValue);
+            key = Settings.System.FORWARD_LOOKUP_PROVIDER;
+        } else if (pref == mChoosePeopleLookupProvider) {
+            key = Settings.System.PEOPLE_LOOKUP_PROVIDER;
         } else if (pref == mChooseReverseLookupProvider) {
-            Settings.System.putString(
-                    getContentResolver(),
-                    Settings.System.REVERSE_LOOKUP_PROVIDER,
-                    newValue);
+            key = Settings.System.REVERSE_LOOKUP_PROVIDER;
+        } else {
+            return;
         }
-    }
 
-    private static boolean isGmsInstalled(Context context) {
-        PackageManager pm = context.getPackageManager();
-        List<PackageInfo> packages = pm.getInstalledPackages(0);
-        for (PackageInfo info : packages) {
-            if (info.packageName.equals("com.google.android.gms")) {
-                return true;
-            }
-        }
-        return false;
+        Settings.System.putString(getContentResolver(), key, newValue);
     }
 
     /**
