@@ -310,7 +310,7 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
         mApp.startActivity(intent);
     }
 
-    public void toggleLTE() {
+    public void toggleLTE(boolean on) {
         int preferredNetworkMode = RILConstants.PREFERRED_NETWORK_MODE;
         if (TelephonyManager.getLteOnCdmaModeStatic() == PhoneConstants.LTE_ON_CDMA_TRUE) {
             preferredNetworkMode = Phone.NT_MODE_GLOBAL;
@@ -335,6 +335,12 @@ public class PhoneInterfaceManager extends ITelephony.Stub {
                 break;
             case Phone.NT_MODE_LTE_CDMA_AND_EVDO:
                 network = Phone.NT_MODE_CDMA;
+                break;
+	        case Phone.NT_MODE_TD_SCDMA_GSM_WCDMA:
+                    network = Phone.NT_MODE_TD_SCDMA_GSM_WCDMA_LTE;
+                break;
+	        case Phone.NT_MODE_TD_SCDMA_GSM_WCDMA_LTE:
+                    network = Phone.NT_MODE_TD_SCDMA_GSM_WCDMA;
                 break;
         }
         Settings.Global.putInt(mPhone.getContext().getContentResolver(),
