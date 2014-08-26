@@ -193,10 +193,13 @@ public class CallFeaturesSetting extends PreferenceActivity
     private static final String BUTTON_HAC_KEY         = "button_hac_key";
     private static final String BUTTON_NOISE_SUPPRESSION_KEY = "button_noise_suppression_key";
 
-    private static final String BUTTON_INCOMING_CALL_STYLE = "button_incoming_call_style";
-
     private static final String BUTTON_GSM_UMTS_OPTIONS = "button_gsm_more_expand_key";
     private static final String BUTTON_CDMA_OPTIONS = "button_cdma_more_expand_key";
+
+    private static final String BUTTON_CALL_UI_IN_BACKGROUND = "bg_incall_screen";
+    private static final String BUTTON_CALL_UI_AS_HEADS_UP = "bg_incall_screen_as_heads_up";
+
+    private static final String DIALKEY_PADDING = "dialkey_padding";
 
     private static final String VM_NUMBERS_SHARED_PREFERENCES_NAME = "vm_numbers";
 
@@ -234,9 +237,6 @@ public class CallFeaturesSetting extends PreferenceActivity
     // Phone.TTY_MODE_xxx
     static final int preferredTtyMode = Phone.TTY_MODE_OFF;
 
-    // dialog identifiers for TTY
-    private static final int TTY_SET_RESPONSE_ERROR = 800;
-
     public static final String HAC_KEY = "HACSetting";
     public static final String HAC_VAL_ON = "ON";
     public static final String HAC_VAL_OFF = "OFF";
@@ -244,23 +244,6 @@ public class CallFeaturesSetting extends PreferenceActivity
     /** Handle to voicemail pref */
     private static final int VOICEMAIL_PREF_ID = 1;
     private static final int VOICEMAIL_PROVIDER_CFG_ID = 2;
-
-    // t9 search input locales that we have a custom overlay for
-    private static final Locale[] T9_SEARCH_INPUT_LOCALES = new Locale[] {
-        new Locale("ko"), new Locale("el"), new Locale("ru"),
-        new Locale("he"), new Locale("zh")
-    };
-
-    // keys of preferences which should be disabled in airplane mode
-    private static final List<String> DISABLE_IN_AIRPLANE_MODE_PREFS = Arrays.asList(new String[] {
-        BUTTON_VOICEMAIL_PROVIDER_KEY, BUTTON_VOICEMAIL_SETTING_KEY,
-        BUTTON_GSM_UMTS_OPTIONS, BUTTON_CDMA_OPTIONS,
-        BUTTON_TTY_KEY, BUTTON_FDN_KEY,
-        // GSM specific options
-        "button_cf_expand_key", "button_more_expand_key",
-        // CDMA specific options
-        "button_voice_privacy_key"
-    });
 
     private Phone mPhone;
 
@@ -315,11 +298,13 @@ public class CallFeaturesSetting extends PreferenceActivity
 
     private Preference mRingtonePreference;
     private CheckBoxPreference mVibrateWhenRinging;
-    private ListPreference mIncomingCallStyle;
     /** Whether dialpad plays DTMF tone or not. */
     private CheckBoxPreference mPlayDtmfTone;
     private CheckBoxPreference mButtonAutoRetry;
     private CheckBoxPreference mButtonHAC;
+    private CheckBoxPreference mButtonCallUiInBackground;
+    private CheckBoxPreference mButtonCallUiAsHeadsUp;
+    private ListPreference mDialkeyPadding;
     private ListPreference mButtonDTMF;
     private ListPreference mButtonTTY;
     private CheckBoxPreference mButtonNoiseSuppression;
@@ -337,7 +322,6 @@ public class CallFeaturesSetting extends PreferenceActivity
     private ListPreference mChooseForwardLookupProvider;
     private ListPreference mChoosePeopleLookupProvider;
     private ListPreference mChooseReverseLookupProvider;
-    private ListPreference mT9SearchInputLocale;
 
     private class VoiceMailProvider {
         public VoiceMailProvider(String name, Intent intent) {
@@ -546,17 +530,17 @@ public class CallFeaturesSetting extends PreferenceActivity
             Settings.System.putInt(getContentResolver(), Settings.System.DTMF_TONE_WHEN_DIALING,
                     mPlayDtmfTone.isChecked() ? 1 : 0);
         } else if (preference == mMwiNotification) {
-            int mwiNotification = mMwiNotification.isChecked() ? 1 : 0;
+            int mwi_notification = mMwiNotification.isChecked() ? 1 : 0;
             Settings.System.putInt(mPhone.getContext().getContentResolver(),
-                    Settings.System.ENABLE_MWI_NOTIFICATION, mwiNotification);
+                    Settings.System.ENABLE_MWI_NOTIFICATION, mwi_notification);
             return true;
         } else if (preference == mButtonDTMF) {
             return true;
         } else if (preference == mButtonTTY) {
-            if (PhoneUtils.isImsVtCallPresent()) {
-                // TTY Mode change is not allowed during a VT call
-                showDialog(TTY_SET_RESPONSE_ERROR);
-            }
+            return true;
+        } else if (preference == mButtonCallUiInBackground) {
+            return true;
+        } else if (preference == mButtonCallUiAsHeadsUp) {
             return true;
         } else if (preference == mButtonNoiseSuppression) {
             int nsp = mButtonNoiseSuppression.isChecked() ? 1 : 0;
@@ -629,12 +613,24 @@ public class CallFeaturesSetting extends PreferenceActivity
             int index = mButtonDTMF.findIndexOfValue((String) objValue);
             Settings.System.putInt(mPhone.getContext().getContentResolver(),
                     Settings.System.DTMF_TONE_TYPE_WHEN_DIALING, index);
-        } else if (preference == mIncomingCallStyle) {
-            int index = mIncomingCallStyle.findIndexOfValue((String) objValue);
-            Settings.System.putInt(mPhone.getContext().getContentResolver(),
-                    Settings.System.INCOMING_CALL_STYLE, index);
         } else if (preference == mButtonTTY) {
             handleTTYChange(preference, objValue);
+        } else if (preference == mButtonCallUiInBackground) {
+            Settings.System.putInt(mPhone.getContext().getContentResolver(),
+                    Settings.System.CALL_UI_IN_BACKGROUND,
+                    (Boolean) objValue ? 1 : 0);
+        } else if (preference == mButtonCallUiAsHeadsUp) {
+            Settings.System.putInt(mPhone.getContext().getContentResolver(),
+                    Settings.System.CALL_UI_AS_HEADS_UP,
+                    (Boolean) objValue ? 1 : 0);
+        } else if (preference == mDialkeyPadding) {
+            final int val = Integer.valueOf((String) objValue);
+            Settings.System.putInt(getContentResolver(),
+                Settings.System.DIALKEY_PADDING, val);
+        } else if (preference == mMwiNotification) {
+            int mwi_notification = mMwiNotification.isChecked() ? 1 : 0;
+            Settings.System.putInt(mPhone.getContext().getContentResolver(),
+                    Settings.System.ENABLE_MWI_NOTIFICATION, mwi_notification);
         } else if (preference == mVoicemailProviders) {
             final String newProviderKey = (String) objValue;
             if (DBG) {
@@ -678,8 +674,6 @@ public class CallFeaturesSetting extends PreferenceActivity
                 || preference == mChoosePeopleLookupProvider
                 || preference == mChooseReverseLookupProvider) {
             saveLookupProviderSetting(preference, (String) objValue);
-        } else if (preference == mT9SearchInputLocale) {
-            saveT9SearchInputLocale(preference, (String) objValue);
         }
         // always let the preference setting proceed.
         return true;
@@ -1511,22 +1505,8 @@ public class CallFeaturesSetting extends PreferenceActivity
                     (id == VOICEMAIL_REVERTING_DIALOG ? R.string.reverting_settings :
                     R.string.reading_settings)));
             return dialog;
-        } else if (id == TTY_SET_RESPONSE_ERROR) {
-
-            AlertDialog.Builder b = new AlertDialog.Builder(this);
-
-            b.setTitle(getText(R.string.tty_mode_option_title));
-            b.setMessage(getText(R.string.tty_mode_not_allowed_vt_call));
-            b.setIconAttribute(android.R.attr.alertDialogIcon);
-            b.setPositiveButton(R.string.ok, this);
-            b.setCancelable(false);
-            AlertDialog dialog = b.create();
-
-            // make the dialog more obvious by bluring the background.
-            dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
-
-            return dialog;
         }
+
 
         return null;
     }
@@ -1612,8 +1592,7 @@ public class CallFeaturesSetting extends PreferenceActivity
 
         // get buttons
         PreferenceScreen prefSet = getPreferenceScreen();
-        mSubMenuVoicemailSettings =
-                (EditPhoneNumberPreference) findPreference(BUTTON_VOICEMAIL_KEY);
+        mSubMenuVoicemailSettings = (EditPhoneNumberPreference)findPreference(BUTTON_VOICEMAIL_KEY);
         if (mSubMenuVoicemailSettings != null) {
             mSubMenuVoicemailSettings.setParentActivity(this, VOICEMAIL_PREF_ID, this);
             mSubMenuVoicemailSettings.setDialogOnClosedListener(this);
@@ -1638,12 +1617,15 @@ public class CallFeaturesSetting extends PreferenceActivity
         mButtonAutoRetry = (CheckBoxPreference) findPreference(BUTTON_RETRY_KEY);
         mButtonHAC = (CheckBoxPreference) findPreference(BUTTON_HAC_KEY);
         mButtonTTY = (ListPreference) findPreference(BUTTON_TTY_KEY);
+        mButtonCallUiInBackground =
+                (CheckBoxPreference) findPreference(BUTTON_CALL_UI_IN_BACKGROUND);
+        mButtonCallUiAsHeadsUp =
+                (CheckBoxPreference) findPreference(BUTTON_CALL_UI_AS_HEADS_UP);
+        mDialkeyPadding =
+                (ListPreference) findPreference(DIALKEY_PADDING);
         mButtonNoiseSuppression = (CheckBoxPreference) findPreference(BUTTON_NOISE_SUPPRESSION_KEY);
         mVoicemailProviders = (ListPreference) findPreference(BUTTON_VOICEMAIL_PROVIDER_KEY);
         mButtonBlacklist = (PreferenceScreen) findPreference(BUTTON_BLACKLIST);
-        mT9SearchInputLocale = (ListPreference) findPreference(BUTTON_T9_SEARCH_INPUT_LOCALE);
-        mIncomingCallStyle = (ListPreference) findPreference(BUTTON_INCOMING_CALL_STYLE);
-
         if (mVoicemailProviders != null) {
             mVoicemailProviders.setOnPreferenceChangeListener(this);
             mVoicemailSettings = (PreferenceScreen)findPreference(BUTTON_VOICEMAIL_SETTING_KEY);
@@ -1652,10 +1634,6 @@ public class CallFeaturesSetting extends PreferenceActivity
             mVoicemailNotificationVibrate =
                     (CheckBoxPreference) findPreference(BUTTON_VOICEMAIL_NOTIFICATION_VIBRATE_KEY);
             initVoiceMailProviders();
-        }
-
-        if (mT9SearchInputLocale != null) {
-            initT9SearchInputPreferenceList();
         }
 
         if (mVibrateWhenRinging != null) {
@@ -1712,6 +1690,18 @@ public class CallFeaturesSetting extends PreferenceActivity
             }
         }
 
+        if (mButtonCallUiInBackground != null) {
+            mButtonCallUiInBackground.setOnPreferenceChangeListener(this);
+        }
+
+        if (mButtonCallUiAsHeadsUp!= null) {
+            mButtonCallUiAsHeadsUp.setOnPreferenceChangeListener(this);
+        }
+
+        if (mDialkeyPadding != null) {
+            mDialkeyPadding.setOnPreferenceChangeListener(this);
+        }
+
         if (mButtonNoiseSuppression != null) {
             if (getResources().getBoolean(R.bool.has_in_call_noise_suppression)) {
                 mButtonNoiseSuppression.setOnPreferenceChangeListener(this);
@@ -1719,11 +1709,6 @@ public class CallFeaturesSetting extends PreferenceActivity
                 prefSet.removePreference(mButtonNoiseSuppression);
                 mButtonNoiseSuppression = null;
             }
-        }
-
-        if (mT9SearchInputLocale != null) {
-            // should this be enabled/disabled based on a flag?
-            mT9SearchInputLocale.setOnPreferenceChangeListener(this);
         }
 
         if (!getResources().getBoolean(R.bool.world_phone)) {
@@ -1773,26 +1758,6 @@ public class CallFeaturesSetting extends PreferenceActivity
         mChoosePeopleLookupProvider.setOnPreferenceChangeListener(this);
         mChooseReverseLookupProvider.setOnPreferenceChangeListener(this);
 
-        String[] reverseLookupNames = getResources().getStringArray(
-                R.array.reverse_lookup_provider_names);
-        String[] reverseLookupProviders = getResources().getStringArray(
-                R.array.reverse_lookup_providers);
-        String cyngnProviderPackage = getString(R.string.cyngn_reverse_lookup_provider_package);
-
-        if (PhoneUtils.isPackageInstalled(this, cyngnProviderPackage)) {
-            reverseLookupNames = Arrays.copyOf(reverseLookupNames, reverseLookupNames.length + 1);
-            reverseLookupProviders = Arrays.copyOf(reverseLookupProviders,
-                    reverseLookupProviders.length + 1);
-
-            reverseLookupNames[reverseLookupNames.length - 1] =
-                    getString(R.string.cyngn_reverse_lookup_provider_name);
-            reverseLookupProviders[reverseLookupProviders.length - 1] =
-                    getString(R.string.cyngn_reverse_lookup_provider_value);
-        }
-
-        mChooseReverseLookupProvider.setEntries(reverseLookupNames);
-        mChooseReverseLookupProvider.setEntryValues(reverseLookupProviders);
-
         restoreLookupProviders();
 
         // create intent to bring up contact list
@@ -1822,7 +1787,6 @@ public class CallFeaturesSetting extends PreferenceActivity
         updateVoiceNumberField();
         mVMProviderSettingsForced = false;
         createSipCallSettings();
-        createImsSettings();
 
         mRingtoneLookupRunnable = new Runnable() {
             @Override
@@ -1921,10 +1885,6 @@ public class CallFeaturesSetting extends PreferenceActivity
         }
     }
 
-    private void createImsSettings() {
-        addPreferencesFromResource(R.xml.ims_settings_category);
-    }
-
     // Gets the call options for SIP depending on whether SIP is allowed only
     // on Wi-Fi only; also make the other options preference invisible.
     private ListPreference getSipCallOptionPreference() {
@@ -1949,7 +1909,14 @@ public class CallFeaturesSetting extends PreferenceActivity
         mForeground = true;
 
         if (isAirplaneModeOn()) {
-            disablePreferencesForAirplaneMode(getPreferenceScreen());
+            Preference sipSettings = findPreference(SIP_SETTINGS_CATEGORY_KEY);
+            PreferenceScreen screen = getPreferenceScreen();
+            int count = screen.getPreferenceCount();
+            for (int i = 0 ; i < count ; ++i) {
+                Preference pref = screen.getPreference(i);
+                if (pref != sipSettings) pref.setEnabled(false);
+            }
+            return;
         }
 
         if (mVibrateWhenRinging != null) {
@@ -1966,14 +1933,6 @@ public class CallFeaturesSetting extends PreferenceActivity
             int dtmf = Settings.System.getInt(getContentResolver(),
                     Settings.System.DTMF_TONE_TYPE_WHEN_DIALING, Constants.DTMF_TONE_TYPE_NORMAL);
             mButtonDTMF.setValueIndex(dtmf);
-        }
-
-        if (mIncomingCallStyle != null) {
-            int style = Settings.System.getInt(getContentResolver(),
-                    Settings.System.INCOMING_CALL_STYLE,
-                    Settings.System.INCOMING_CALL_STYLE_FULLSCREEN_PHOTO);
-            mIncomingCallStyle.setOnPreferenceChangeListener(this);
-            mIncomingCallStyle.setValueIndex(style);
         }
 
         if (mButtonAutoRetry != null) {
@@ -1995,6 +1954,24 @@ public class CallFeaturesSetting extends PreferenceActivity
             updatePreferredTtyModeSummary(settingsTtyMode);
         }
 
+        if (mButtonCallUiInBackground != null) {
+            int callUiInBackground = Settings.System.getInt(getContentResolver(),
+                    Settings.System.CALL_UI_IN_BACKGROUND, 1);
+            mButtonCallUiInBackground.setChecked(callUiInBackground != 0);
+        }
+
+        if (mButtonCallUiAsHeadsUp != null) {
+            int callUiAsHeadsUp = Settings.System.getInt(getContentResolver(),
+                    Settings.System.CALL_UI_AS_HEADS_UP, 1);
+            mButtonCallUiAsHeadsUp.setChecked(callUiAsHeadsUp != 0);
+        }
+
+        if (mDialkeyPadding != null) {
+            int dialkeyPadding = Settings.System.getInt(getContentResolver(),
+                    Settings.System.DIALKEY_PADDING, 0);
+            mDialkeyPadding.setValue(String.valueOf(dialkeyPadding));
+        }
+
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(
                 mPhone.getContext());
         if (migrateVoicemailVibrationSettingsIfNeeded(prefs)) {
@@ -2007,18 +1984,6 @@ public class CallFeaturesSetting extends PreferenceActivity
 
         restoreLookupProviderSwitches();
         restoreLookupProviders();
-    }
-
-    private void disablePreferencesForAirplaneMode(PreferenceGroup group) {
-        int count = group.getPreferenceCount();
-        for (int i = 0 ; i < count ; ++i) {
-            Preference pref = group.getPreference(i);
-            if (DISABLE_IN_AIRPLANE_MODE_PREFS.contains(pref.getKey())) {
-                pref.setEnabled(false);
-            } else if (pref instanceof PreferenceGroup) {
-                disablePreferencesForAirplaneMode((PreferenceGroup) pref);
-            }
-        }
     }
 
     private void updateBlacklistSummary() {
@@ -2073,20 +2038,8 @@ public class CallFeaturesSetting extends PreferenceActivity
     }
 
     private boolean isAirplaneModeOn() {
-        return Settings.Global.getInt(getContentResolver(),
-                Settings.Global.AIRPLANE_MODE_ON, 0) != 0;
-    }
-
-    private void saveT9SearchInputLocale(Preference preference, String newT9Locale) {
-        if (DBG) log("saveT9SearchInputLocale: requesting set t9 locale to " + newT9Locale);
-
-        String lastT9Locale = Settings.System.getString(getContentResolver(),
-                Settings.System.T9_SEARCH_INPUT_LOCALE);
-
-        if (!TextUtils.equals(lastT9Locale, newT9Locale)) {
-            Settings.System.putString(getContentResolver(),
-                    Settings.System.T9_SEARCH_INPUT_LOCALE, newT9Locale);
-        }
+        return Settings.System.getInt(getContentResolver(),
+                Settings.System.AIRPLANE_MODE_ON, 0) != 0;
     }
 
     private void handleTTYChange(Preference preference, Object objValue) {
@@ -2348,32 +2301,6 @@ public class CallFeaturesSetting extends PreferenceActivity
 
         // Finally update the preference texts.
         updateVMPreferenceWidgets(mPreviousVMProviderKey);
-    }
-
-    private void initT9SearchInputPreferenceList() {
-        int len = T9_SEARCH_INPUT_LOCALES.length + 1;
-        String[] entries = new String[len];
-        String[] values = new String[len];
-
-        entries[0] = getString(R.string.t9_search_input_locale_default);
-        values[0] = "";
-
-        // add locales programatically so we can use locale.getDisplayName
-        for (int i = 0; i < T9_SEARCH_INPUT_LOCALES.length; i++) {
-            Locale locale = T9_SEARCH_INPUT_LOCALES[i];
-            entries[i + 1] = locale.getDisplayName();
-            values[i + 1] = locale.toString();
-        }
-
-        // Set current entry from global system setting
-        String settingsT9Locale = Settings.System.getString(getContentResolver(),
-                Settings.System.T9_SEARCH_INPUT_LOCALE);
-        if (settingsT9Locale != null) {
-            mT9SearchInputLocale.setValue(settingsT9Locale);
-        }
-
-        mT9SearchInputLocale.setEntries(entries);
-        mT9SearchInputLocale.setEntryValues(values);
     }
 
     private String makeKeyForActivity(ActivityInfo ai) {

@@ -235,16 +235,6 @@ public class MSimCallNotifier extends CallNotifier {
         Call ringing = c.getCall();
         Phone phone = ringing.getPhone();
 
-        // Check for a few cases where we totally ignore incoming calls.
-        if (ignoreAllIncomingCalls(phone)) {
-            // Immediately reject the call, without even indicating to the user
-            // that an incoming call occurred.  (This will generally send the
-            // caller straight to voicemail, just as if we *had* shown the
-            // incoming-call UI and the user had declined the call.)
-            PhoneUtils.hangupRingingCall(ringing);
-            return;
-        }
-
         if (!c.isRinging()) {
             Log.i(LOG_TAG, "CallNotifier.onNewRingingConnection(): connection not ringing!");
             // This is a very strange case: an incoming call that stopped
@@ -315,9 +305,6 @@ public class MSimCallNotifier extends CallNotifier {
         // Instead, we update the notification (and potentially launch the
         // InCallScreen) from the showIncomingCall() method, which runs
         // when the caller-id query completes or times out.
-
-        // Finally, do the Quiet Hours ringer handling
-        checkInQuietHours(c);
 
         if (VDBG) log("- onNewRingingConnection() done.");
     }

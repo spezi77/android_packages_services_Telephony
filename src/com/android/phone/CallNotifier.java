@@ -37,7 +37,6 @@ import com.android.internal.telephony.cdma.CdmaInformationRecords.CdmaSignalInfo
 import com.android.internal.telephony.cdma.SignalToneUtil;
 import com.android.internal.telephony.gsm.SuppServiceNotification;
 import com.android.internal.telephony.util.BlacklistUtils;
-import com.android.internal.util.cm.QuietHoursUtils;
 import com.android.phone.CallFeaturesSetting;
 
 import android.app.ActivityManagerNative;
@@ -491,8 +490,6 @@ public class CallNotifier extends Handler
         // InCallScreen) from the showIncomingCall() method, which runs
         // when the caller-id query completes or times out.
 
-        // Finally, do the Quiet Hours ringer handling
-        checkInQuietHours(c);
 
         if (VDBG) log("- onNewRingingConnection() done.");
     }
@@ -525,81 +522,6 @@ public class CallNotifier extends Handler
             }
             return true;
         }
-        return false;
-    }
-
-    protected void checkInQuietHours(Connection c) {
-        final String number = c.getAddress();
-
-        if (QuietHoursUtils.inQuietHours(mApplication, Settings.System.QUIET_HOURS_RINGER)) {
-            if (DBG) log("Incoming call from " + number + " received during Quiet Hours.");
-            // Determine what type of Quiet Hours we are in and act accordingly
-            int muteType = Settings.System.getInt(mApplication.getContentResolver(),
-                    Settings.System.QUIET_HOURS_RINGER,
-                    Settings.System.QUIET_HOURS_RINGER_ALLOW_ALL);
-
-            switch (muteType) {
-                case Settings.System.QUIET_HOURS_RINGER_CONTACTS_ONLY:
-                    if (!isContact(number, false)) {
-                        if (DBG) log("Muting ringer, caller not in contact list");
-                        silenceRinger();
-                    }
-                    break;
-                case Settings.System.QUIET_HOURS_RINGER_FAVORITES_ONLY:
-                    if (!isContact(number, true)) {
-                        if (DBG) log("Muting ringer, caller is not favorite");
-                        silenceRinger();
-                    }
-                    break;
-                case Settings.System.QUIET_HOURS_RINGER_DISABLED:
-                    if (DBG) log("Muting ringer");
-                    silenceRinger();
-                    break;
-            }
-        }
-    }
-
-    /**
-     * Helper function used to determine if calling number is from person in the Contacts
-     * Optionally, it can also check if the contact is a 'Starred'or favourite contact
-     */
-    private boolean isContact(String number, boolean checkFavorite) {
-        if (DBG) log("isContact(): checking if " + number + " is in the contact list.");
-
-        Uri lookupUri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI,
-                Uri.encode(number));
-        Cursor cursor = mApplication.getContentResolver().query(lookupUri,
-                checkFavorite ? FAVORITE_PROJECTION : CONTACT_PROJECTION,
-                ContactsContract.PhoneLookup.NUMBER + "=?",
-                new String[] { number }, null);
-
-        if (cursor == null) {
-            if (DBG) log("Couldn't query contacts provider");
-            return false;
-        }
-
-        try {
-            if (cursor.moveToFirst() && !checkFavorite) {
-                // All we care about is that the number is in the Contacts list
-                if (DBG) log("Number belongs to a contact");
-                return true;
-            }
-
-            // Either no result or we should check for favorite.
-            // In the former case the loop won't be entered.
-            while (!cursor.isAfterLast()) {
-                if (cursor.getInt(cursor.getColumnIndex(
-                        ContactsContract.PhoneLookup.STARRED)) == 1) {
-                    if (DBG) log("Number belongs to a favorite");
-                    return true;
-                }
-                cursor.moveToNext();
-            }
-        } finally {
-            cursor.close();
-        }
-
-        if (DBG) log("A match for the number wasn't found");
         return false;
     }
 
@@ -1578,24 +1500,6 @@ public class CallNotifier extends Handler
                     toneVolume = TONE_RELATIVE_VOLUME_HIPRI;
                     toneLengthMillis = 4000;
                     break;
-                case TONE_LOCAL_CW:
-                    toneType = ToneGenerator.TONE_LOCAL_CW;
-                    toneVolume = TONE_RELATIVE_VOLUME_HIPRI;
-                    // Local call waiting tone is stopped by stopTone() method
-                    toneLengthMillis = Integer.MAX_VALUE - TONE_TIMEOUT_BUFFER;
-                    break;
-                case TONE_HOLD_RECALL:
-                    toneType = ToneGenerator.TONE_HOLD_RECALL;
-                    toneVolume = TONE_RELATIVE_VOLUME_HIPRI;
-                    // Call hold recall tone is stopped by stopTone() method
-                    toneLengthMillis = Integer.MAX_VALUE - TONE_TIMEOUT_BUFFER;
-                    break;
-                case TONE_SUPERVISORY_CH:
-                    toneType = ToneGenerator.TONE_SUPERVISORY_CH;
-                    toneVolume = TONE_RELATIVE_VOLUME_HIPRI;
-                    // Supervisory call held tone is stopped by stopTone() method
-                    toneLengthMillis = Integer.MAX_VALUE - TONE_TIMEOUT_BUFFER;
-                    break;
                 default:
                     throw new IllegalArgumentException("Bad toneId: " + mToneId);
             }
@@ -1611,15 +1515,6 @@ public class CallNotifier extends Handler
                 } else {
                     stream = AudioManager.STREAM_VOICE_CALL;
                 }
-
-                // As supervisory tone played in-band, phoneapp need to
-                // set the stream type as INCALL_MUSIC.
-
-                if (toneType == ToneGenerator.TONE_SUPERVISORY_CH) {
-                    stream = AudioManager.STREAM_INCALL_MUSIC;
-                }
-
-
                 toneGenerator = new ToneGenerator(stream, toneVolume);
                 // if (DBG) log("- created toneGenerator: " + toneGenerator);
             } catch (RuntimeException e) {
