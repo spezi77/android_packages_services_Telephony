@@ -2061,7 +2061,7 @@ public class PhoneUtils {
             }
         }
     }
-    
+
     /**
      * Reset the audio stream volume to fix the low in-call volume bug.
      *
