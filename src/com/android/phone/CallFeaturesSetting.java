@@ -31,7 +31,10 @@ import android.content.SharedPreferences.Editor;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.ResolveInfo;
+import android.content.res.Resources;
+import android.content.res.Resources.NotFoundException;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
 import android.media.AudioManager;
@@ -281,6 +284,9 @@ public class CallFeaturesSetting extends PreferenceActivity
     // Blacklist support
     private static final String BUTTON_BLACKLIST = "button_blacklist";
 
+    // Call recording format
+    private static final String CALL_RECORDING_FORMAT = "call_recording_format";
+
     private EditPhoneNumberPreference mSubMenuVoicemailSettings;
 
     private Runnable mRingtoneLookupRunnable;
@@ -326,6 +332,7 @@ public class CallFeaturesSetting extends PreferenceActivity
     private SwitchPreference mEnableReverseLookup;
     private ListPreference mChooseForwardLookupProvider;
     private ListPreference mChooseReverseLookupProvider;
+    private ListPreference mCallRecordingFormat;
 
     private class VoiceMailProvider {
         public VoiceMailProvider(String name, Intent intent) {
@@ -695,6 +702,11 @@ public class CallFeaturesSetting extends PreferenceActivity
         } else if (preference == mChooseForwardLookupProvider
                 || preference == mChooseReverseLookupProvider) {
             saveLookupProviders(preference, (String) objValue);
+        } else if (preference == mCallRecordingFormat) {
+            int value = Integer.valueOf((String) objValue);
+            int index = mCallRecordingFormat.findIndexOfValue((String) objValue);
+            Settings.System.putInt(getContentResolver(), Settings.System.CALL_RECORDING_FORMAT, value);
+            mCallRecordingFormat.setSummary(mCallRecordingFormat.getEntries()[index]);
         }
         // always let the preference setting proceed.
         return true;
@@ -1668,7 +1680,9 @@ public class CallFeaturesSetting extends PreferenceActivity
             mVoicemailNotificationVibrate =
                     (CheckBoxPreference) findPreference(BUTTON_VOICEMAIL_NOTIFICATION_VIBRATE_KEY);
             initVoiceMailProviders();
-        }
+
+        mCallRecordingFormat = (ListPreference) findPreference(CALL_RECORDING_FORMAT);
+       }
 
         if (mVibrateWhenRinging != null) {
             Vibrator vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
@@ -1822,6 +1836,13 @@ public class CallFeaturesSetting extends PreferenceActivity
 
         initLookupProviders();
         restoreLookupProviders();
+
+        if (mCallRecordingFormat != null) {
+            int format = Settings.System.getInt(getContentResolver(), Settings.System.CALL_RECORDING_FORMAT, 0);
+            mCallRecordingFormat.setValue(String.valueOf(format));
+            mCallRecordingFormat.setSummary(mCallRecordingFormat.getEntry());
+            mCallRecordingFormat.setOnPreferenceChangeListener(this);
+        }
 
         // create intent to bring up contact list
         mContactListIntent = new Intent(Intent.ACTION_GET_CONTENT);
